@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Find Meal For Your Ingredients</title>
+  {% load static %}
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" integrity="sha512-+4zCK9k+qNFUR5X+cKL9EIR+ZOhtIloNl9GIKS57V1MyNsYpYcUrUeQc9vNfzsWfV28IaLL3i96P9sdNyeRssA==" crossorigin="anonymous" />
+  <link rel="stylesheet" href="{% static 'css/homecss.css' %}">
+</head>
+<body>  
+  <div class="container">
+    <div class="meal-wrapper">
+      <div class="meal-search">
+        <h2 class="title">Find Meals For Your Ingredients</h2>
+        <blockquote>Eat good. Feel good.<br></blockquote>
+
+        <div class="meal-search-box">
+          <input type="text" class="search-control" placeholder="Enter an ingredient" id="search-input">
+          <button type="submit" class="search-btn btn" id="search-btn">
+            <i class="fas fa-search"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="meal-result">
+        <h2 class="title">Your Search Results:</h2>
+        <div id="meal">
+          <!-- Add Recipe Card -->
+          <div class="meal-item add-recipe-card" onclick="openAddRecipeModal()">
+            <h3>+ Add Recipe</h3>
+          </div>
+        </div>
+      </div>
+
+      <div class="meal-details">
+        <!-- recipe close btn -->
+        <button type="button" class="btn recipe-close-btn" id="recipe-close-btn" onclick="getMealList()">
+          <i class="fas fa-times"></i>
+        </button>
+
+        <!-- meal content -->
+        <div class="meal-details-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Recipe Modal -->
+  <div id="modal-overlay" class="modal-overlay"></div> <!-- Modal Overlay -->
+
+  <div id="add-recipe-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeAddRecipeModal()">&times;</span>
+      <h2>Add a New Recipe</h2>
+      
+      <form id="add-recipe-form" onsubmit="submitRecipe(event)">
+        <div class="form-group">
+            <label for="recipe-name">Recipe Name</label>
+            <input type="text" id="recipe-name" name="recipe-name" required>
+        </div>
+        <div class="form-group">
+            <label for="recipe-image">Recipe Image</label>
+            <input type="file" id="recipe-image" name="recipe-image" accept="image/*">
+        </div>
+        <div class="form-group">
+            <label for="recipe-category">Category</label>
+            <select id="recipe-category" name="category" required>
+                <option value="Vegan">Vegan</option>
+                <option value="Vegetarian">Vegetarian</option>
+                <option value="Non-Vegetarian">Non-Vegetarian</option>
+                <option value="Dessert">Dessert</option>
+                <option value="Other">Other</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="recipe-instructions">Instructions</label>
+            <textarea id="recipe-instructions" name="recipe-instructions" required></textarea>
+        </div>
+        <button id="submit-recipe-btn" type="submit">Submit Recipe</button>
+    </form>
+    </div>
+  </div>
+
+  <script src="{% static 'js/homescript.js' %}"></script>
+</body>
+</html>
