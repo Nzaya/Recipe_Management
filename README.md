@@ -42,3 +42,19 @@ Start the server
 
 ![App Screenshot](https://github.com/Nzaya/Recipe_Management/blob/main/recipe_management/screenshots/register.png?raw=true)
 
+## Home Page
+
+![App Screenshot](https://github.com/Nzaya/Recipe_Management/blob/main/recipe_management/screenshots/homepage.png?raw=true)
+
+
+## Add recipe module
+
+![App Screenshot](https://github.com/Nzaya/Recipe_Management/blob/main/recipe_management/screenshots/add_recipe.png?raw=true)
+
+## Appendix
+
+Removed my database connection, clone the project, connect it with your own and have fun
+
+
+
+
