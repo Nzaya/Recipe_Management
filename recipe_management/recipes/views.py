@@ -6,106 +6,145 @@ import json
 from .forms import RegisterForm  
 from .models import Recipe
 from django.views.decorators.csrf import csrf_exempt  # Exempt token while using postman
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Recipe
+from .serializers import RecipeSerializer
+from django.urls import reverse
+from django.core.files.uploadedfile import InMemoryUploadedFile
+from rest_framework.parsers import MultiPartParser, FormParser
 
 # Registration View
-@csrf_exempt
-def register(request):
-    if request.method == 'POST':
-        # Parse JSON data from the request body
-        data = json.loads(request.body)
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth.models import User
+
+class RegisterAPIView(APIView):
+    def post(self, request):
+        data = request.data  # Parse JSON data
         username = data.get('username')
         email = data.get('email')
         password = data.get('password')
-        
-        # Create a new user
+
+        if not username or not email or not password:
+            return Response({"message": "All fields are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if the username or email already exists
+        if User.objects.filter(username=username).exists():
+            return Response({"message": "Username already exists."}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(email=email).exists():
+            return Response({"message": "Email already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create the user
         user = User.objects.create_user(username=username, email=email, password=password)
         user.save()
-        
-        return JsonResponse({"message": "User created successfully!"}, status=201)
-    return render(request, 'registration/register.html')
+        return Response({"message": "User created successfully!"}, status=status.HTTP_201_CREATED)
 
 # Login View
-@csrf_exempt
-def login_view(request):
-    if request.method == 'POST':
-        # Parse JSON data from the request body
-        data = json.loads(request.body)
+class LoginAPIView(APIView):
+    def post(self, request):
+        data = request.data  # Parse JSON data
         username = data.get('username')
         password = data.get('password')
-        
+
+        if not username or not password:
+            return Response({"message": "Username and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
-            return redirect('home')  # Redirect to the homepage
-            # return JsonResponse({"message": "Login successful!"}, status=200)
+            homepage_url = reverse('home')  # Get the URL for the homepage
+            return Response(
+                {
+                    "message": "Login successful!",
+                    "redirect_url": homepage_url
+                },
+                status=status.HTTP_200_OK
+            )
         else:
-            return JsonResponse({"message": "Invalid credentials!"}, status=400)
-    return render(request, 'registration/login.html')
-
-
+            return Response({"message": "Invalid credentials!"}, status=status.HTTP_401_UNAUTHORIZED)
+        
 # Homepage View
-# def homepage(request):
-#     return render(request, 'homepage/home.html')
+class HomepageAPIView(APIView):
+    def get(self, request):
+        # Fetch all recipes from the database
+        recipes = Recipe.objects.all()
 
-def homepage(request):
-    # Fetch all recipes from the database
-    recipes = Recipe.objects.all()
+        if not recipes:
+            # If no recipes are found, return a placeholder message
+            return Response(
+                {"success": True, "message": "No recipes available. Please add some recipes.", "recipes": []},
+                status=status.HTTP_200_OK
+            )
 
-    # Check if there are any recipes; if not, display a placeholder message
-    if not recipes:
-        message = "No recipes available. Please add some recipes."
-    else:
-        message = None
-
-    return render(request, 'homepage/home.html', {'recipes': recipes, 'message': message})
-
-# -----ADD RECIPE
-@csrf_exempt
-def add_recipe(request):
-    if request.method == 'POST':
-        name = request.POST.get('name')
-        image = request.FILES.get('image')
-        category = request.POST.get('category')
-        instructions = request.POST.get('instructions')
-        
-        recipe = Recipe(
-            name=name,
-            image=image,
-            category=category,
-            instructions=instructions
+        # Serialize the recipes
+        serializer = RecipeSerializer(recipes, many=True)
+        return Response(
+            {"success": True, "message": None, "recipes": serializer.data},
+            status=status.HTTP_200_OK
         )
-        recipe.save()
 
-        return JsonResponse({'success': True, 'message': 'Recipe added successfully!'})
-    return JsonResponse({'success': False, 'message': 'Invalid request method.'})
+# Add Recipe View
+class AddRecipeAPIView(APIView):
+    def post(self, request):
+        serializer = RecipeSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'success': True, 'message': 'Recipe added successfully!'}, status=status.HTTP_201_CREATED)
+        return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-# ------GET RECIPE
-@csrf_exempt
-def get_recipes(request):
-    try:
-        # Get the search term from the query parameters
-        search_term = request.GET.get('search', '').strip()
-        
-        # Filter recipes by name if search term is provided, otherwise retrieve all
+
+# Get Recipes View
+class GetRecipesAPIView(APIView):
+    def get(self, request):
+        search_term = request.query_params.get('search', '').strip()
         if search_term:
             recipes = Recipe.objects.filter(name__icontains=search_term)
         else:
             recipes = Recipe.objects.all()
 
-        # Prepare the data for JSON response
-        recipes_data = [
-            {
-                'id': recipe.id,
-                'name': recipe.name,
-                'image': recipe.image.url if recipe.image else '',  # Return URL for image
-                'category': recipe.category,
-                'instructions': recipe.instructions,
-            }
-            for recipe in recipes
-        ]
+        serializer = RecipeSerializer(recipes, many=True)
+        return Response({'success': True, 'recipes': serializer.data}, status=status.HTTP_200_OK)
+    
+# Edit Recipe View
+class EditRecipeAPIView(APIView):
+    # Use appropriate parsers
+    parser_classes = (MultiPartParser, FormParser)
 
-        return JsonResponse({'success': True, 'recipes': recipes_data}, safe=False)
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    def put(self, request, pk):
+        try:
+            # Retrieve the recipe
+            recipe = Recipe.objects.get(id=pk)
 
+            # Retrieve form data from the request
+            name = request.data.get('name', recipe.name)
+            image = request.data.get('image', recipe.image)
+            category = request.data.get('category', recipe.category)
+            instructions = request.data.get('instructions', recipe.instructions)
+
+            # Update recipe
+            recipe.name = name
+            if isinstance(image, InMemoryUploadedFile):
+                recipe.image = image
+            recipe.category = category
+            recipe.instructions = instructions
+            recipe.save()
+
+            return Response({"message": "Recipe updated successfully!"}, status=status.HTTP_200_OK)
+
+        except Recipe.DoesNotExist:
+            return Response({"message": "Recipe not found!"}, status=status.HTTP_404_NOT_FOUND)
+    
+# Delete Recipe View
+class DeleteRecipeAPIView(APIView):
+    def delete(self, request, pk):
+        try:
+            recipe = Recipe.objects.get(pk=pk)
+        except Recipe.DoesNotExist:
+            return Response({"message": "Recipe not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        recipe.delete()
+        return Response({"message": "Recipe deleted successfully!"}, status=status.HTTP_204_NO_CONTENT)
 
